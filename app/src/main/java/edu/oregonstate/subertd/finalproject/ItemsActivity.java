@@ -367,6 +367,31 @@ public class ItemsActivity extends AppCompatActivity {
         }
         else {
             //Toast.makeText(this, scanningResult.getFormatName(), Toast.LENGTH_LONG).show();
+            new UpcItemAdder().execute(scanningResult.getContents());
+        }
+    }
+
+    private class UpcItemAdder extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(final String...params) {
+            final String upc = params[0];
+            final String productName =  new UpcFinder().getProductDescription(upc);
+            return productName;
+        }
+
+        @Override
+        protected void onPostExecute(final String productName) {
+            if (productName == null || productName.equals("")) {
+                Toast.makeText(ItemsActivity.this, "Unrecognized UPC", Toast.LENGTH_LONG).show();
+            }
+            else {
+                Toast.makeText(ItemsActivity.this, "Adding item: " + productName, Toast.LENGTH_LONG).show();
+                final ShoppingListItem item = new ShoppingListItem();
+                item.setName(productName);
+                item.setQuantity(1);
+                new ListItemAdder().execute(item);
+            }
         }
     }
 }

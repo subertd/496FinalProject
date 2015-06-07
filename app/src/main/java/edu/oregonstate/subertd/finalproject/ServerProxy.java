@@ -279,7 +279,9 @@ public class ServerProxy {
 
             Log.i(TAG, "Add List Item Response: " + response);
 
-            return new JSONObject(response);
+            final JSONObject returnValue = new JSONObject(response);
+            returnValue.put("success", true);
+            return returnValue;
         }
         catch (final IOException | JSONException e) {
             final String message = "Unable to add the item to the list";
