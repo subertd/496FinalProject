@@ -3,6 +3,7 @@ package edu.oregonstate.subertd.finalproject;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -26,9 +27,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.zxing.integration.android.IntentIntegrator;
+import com.google.zxing.integration.android.IntentResult;
+
 public class ItemsActivity extends AppCompatActivity {
 
     private static final String TAG = ItemsActivity.class.getName();
+
+    private static final String FORMAT_UPC = "UPC_A";
 
     private String userId;
     private String token;
@@ -71,6 +77,10 @@ public class ItemsActivity extends AppCompatActivity {
         }
         if (id == R.id.action_add_item) {
             showAddItemDialog();
+            return true;
+        }
+        if (id == R.id.action_add_scan_item) {
+            addItemFromScannedBarcode();
             return true;
         }
 
@@ -325,6 +335,38 @@ public class ItemsActivity extends AppCompatActivity {
             });
 
             return convertView;
+        }
+    }
+
+    /**
+     * @citation this function uses code from this tutorial
+     * http://code.tutsplus.com/tutorials/android-sdk-create-a-barcode-reader--mobile-17162
+     */
+    private void addItemFromScannedBarcode() {
+
+        IntentIntegrator scanIntegrator = new IntentIntegrator(this);
+        scanIntegrator.initiateScan();
+    }
+
+    /**
+     * @citation this function uses code from this tutorial
+     * http://code.tutsplus.com/tutorials/android-sdk-create-a-barcode-reader--mobile-17162
+     */
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+
+        final IntentResult scanningResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
+
+        if (scanningResult == null) {
+            Toast.makeText(this, "No data returned from scan", Toast.LENGTH_LONG).show();
+        }
+        else if (!scanningResult.getFormatName().equals(FORMAT_UPC)) {
+            Toast.makeText(this,
+                "Only UPC barcodes are accepted; Actually was " + scanningResult.getFormatName(),
+                Toast.LENGTH_LONG)
+            .show();
+        }
+        else {
+            //Toast.makeText(this, scanningResult.getFormatName(), Toast.LENGTH_LONG).show();
         }
     }
 }
