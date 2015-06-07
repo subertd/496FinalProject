@@ -1,10 +1,8 @@
 package edu.oregonstate.subertd.finalproject;
 
 import android.app.AlertDialog;
-import android.app.ListActivity;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.DataSetObserver;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -13,21 +11,15 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ListsActivity extends AppCompatActivity {
 
@@ -139,16 +131,28 @@ public class ListsActivity extends AppCompatActivity {
 
                     @Override
                     public void onItemClick(final AdapterView<?> listView, final View view,
-                                            final int position, final long id) {
-                    final ShoppingList list = listOfLists[position];
+                                            final int position, final long id)
+                    {
+                        final ShoppingList list = listOfLists[position];
 
-                    // Start the Items Activity for the selected list
-                    final Intent itemsActivity = new Intent(ListsActivity.this, ItemsActivity.class);
-                    itemsActivity.putExtra("listName", list.getName());
-                    itemsActivity.putExtra("listId", list.getId());
-                    itemsActivity.putExtra("userId", userId);
-                    itemsActivity.putExtra("token", token);
-                    startActivity(itemsActivity);
+                        // Start the Items Activity for the selected list
+                        final Intent itemsActivity = new Intent(ListsActivity.this, ItemsActivity.class);
+                        itemsActivity.putExtra("listName", list.getName());
+                        itemsActivity.putExtra("listId", list.getId());
+                        itemsActivity.putExtra("userId", userId);
+                        itemsActivity.putExtra("token", token);
+                        startActivity(itemsActivity);
+                    }
+                });
+
+                listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+
+                    @Override
+                    public boolean onItemLongClick(final AdapterView<?> listView, final View view,
+                                            final int position, final long id)
+                    {
+                        showListOptionsDialog(listOfLists[position]);
+                        return true;
                     }
                 });
             }
@@ -166,7 +170,6 @@ public class ListsActivity extends AppCompatActivity {
     private void showAddListDialog() {
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
-
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_add_list, null);
         dialogBuilder.setView(dialogView);
@@ -178,7 +181,9 @@ public class ListsActivity extends AppCompatActivity {
         dialogBuilder.setPositiveButton(R.string.add_list_dialog_button, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int d) {
-                new NewListAdder().execute(listNameField.getText().toString());
+                final ShoppingList list = new ShoppingList();
+                list.setName(listNameField.getText().toString());
+                addList(list);
             }
         });
         dialogBuilder.setCancelable(true);
@@ -187,13 +192,85 @@ public class ListsActivity extends AppCompatActivity {
         alertDialog.show();
     }
 
-    private class NewListAdder extends AsyncTask<String, Void, String> {
+    /**
+     * @citation this uses some code from a project that I did a long time ago.
+     * I don't remember if any of that code references something else.
+     */
+    private void showListOptionsDialog(final ShoppingList list) {
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+
+        final String[] options = {
+            getString(R.string.edit_list_button),
+            getString(R.string.delete_list_button)
+        };
+
+        builder.setTitle(list.getName());
+        builder.setCancelable(true);
+        builder.setItems(options, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int item) {
+                switch(item) {
+                    case 0:
+                        showEditListDialog(list);
+                        break;
+                    case 1:
+                        deleteList(list.getId());
+                        break;
+                }
+            }
+        });
+
+        builder.create();
+        builder.show();
+    }
+
+    private void showEditListDialog(final ShoppingList list) {
+
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_add_list, null);
+        dialogBuilder.setView(dialogView);
+
+        // @citation http://stackoverflow.com/questions/5525500/findviewbyid-returns-null-in-a-dialog
+        final EditText listNameField = (EditText)dialogView.findViewById(R.id.list_name_field);
+
+        dialogBuilder.setTitle(getString(R.string.editing) + " " + list.getName());
+        dialogBuilder.setPositiveButton(R.string.update_list_dialog_button, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int d) {
+                list.setName(listNameField.getText().toString());
+                updateList(list);
+            }
+        });
+        dialogBuilder.setCancelable(true);
+
+        AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private void addList(final ShoppingList list) {
+
+        new ListAdder().execute(list);
+    }
+
+    private void deleteList(final String listId) {
+
+        new ListDeleter().execute(listId);
+    }
+
+    private void updateList(final ShoppingList list) {
+
+        new ListUpdater().execute(list);
+    }
+
+    private class ListAdder extends AsyncTask<ShoppingList, Void, String> {
 
         @Override
-        protected String doInBackground(String...params) {
+        protected String doInBackground(ShoppingList...params) {
 
-            final ShoppingList shoppingList = new ShoppingList();
-            shoppingList.setName(params[0]);
+            final ShoppingList shoppingList = params[0];
 
             try {
                 final JSONObject response = new ServerProxy().addList(userId, token, shoppingList);
@@ -206,11 +283,76 @@ public class ListsActivity extends AppCompatActivity {
                     return "Successfully Added new Shopping List: " + listName;
                 }
                 else {
-                    return "Unable to Add List (1)";
+                    return "Unable to Add the Shopping List";
                 }
             }
             catch (final ServerException e) {
-                return "Unable to Add List (2)";
+                return "Unable to Add the Shopping List";
+            }
+            catch (final JSONException e) {
+                return "Unexpected Response from Server";
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final String result) {
+            Toast.makeText(ListsActivity.this, result, Toast.LENGTH_LONG).show();
+            populateListOfLists();
+        }
+    }
+
+    private class ListDeleter extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String...params) {
+            try {
+                final String listId = params[0];
+                final JSONObject response = new ServerProxy().deleteList(userId, token, listId);
+                final boolean success = response.getBoolean("success");
+
+                if (success) {
+                    return "Sucessfully Deleted the Shopping List";
+                } else {
+                    return "Unable to Delete the Shopping List";
+                }
+            }
+            catch (final ServerException e) {
+                return "Unable to Delete the Shopping List";
+            }
+            catch (final JSONException e) {
+                return "Unexpected Response from Server";
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final String result) {
+            Toast.makeText(ListsActivity.this, result, Toast.LENGTH_LONG).show();
+            populateListOfLists();
+        }
+    }
+
+    private class ListUpdater extends AsyncTask<ShoppingList, Void, String> {
+
+        @Override
+        protected String doInBackground(ShoppingList...params) {
+
+            final ShoppingList shoppingList = params[0];
+
+            try {
+                final JSONObject response =
+                        new ServerProxy().updateList(userId, token, shoppingList);
+
+                final boolean success = response.getBoolean("success");
+
+                if (success) {
+                    return "Successfully Updated the Shopping List";
+                }
+                else {
+                    return "Unable to Update the Shopping List";
+                }
+            }
+            catch (final ServerException e) {
+                return "Unable to Update the Shopping List";
             }
             catch (final JSONException e) {
                 return "Unexpected Response from Server";

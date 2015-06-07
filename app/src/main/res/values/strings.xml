@@ -20,4 +20,8 @@
 
     <string name="add_item_dialog_button">Add List Item</string>
     <string name="add_item_dialog_title">Add a New Shopping List Item</string>
+    <string name="edit_list_button">Edit</string>
+    <string name="delete_list_button">Delete</string>
+    <string name="editing">Editing</string>
+    <string name="update_list_dialog_button">Update Shopping List</string>
 </resources>

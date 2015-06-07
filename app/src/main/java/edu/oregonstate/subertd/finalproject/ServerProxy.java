@@ -3,8 +3,10 @@ package edu.oregonstate.subertd.finalproject;
 import android.util.Log;
 
 import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -29,7 +31,9 @@ public class ServerProxy {
 
     private static final String LISTS_PATH = "/lists";
 
-    public JSONObject createAccount(final String userName, final String password) throws ServerException {
+    public JSONObject createAccount(final String userName, final String password)
+            throws ServerException
+    {
 
         final String path = PROTOCOL_HTTP + API_ROOT + USER_PATH;
         Log.i(TAG, "Create Account Path: " + path);
@@ -62,7 +66,9 @@ public class ServerProxy {
         }
     }
 
-    public JSONObject logIn(final String userName, final String password) throws ServerException {
+    public JSONObject logIn(final String userName, final String password)
+            throws ServerException
+    {
 
         try {
             HttpPost request = new HttpPost(PROTOCOL_HTTP + API_ROOT + USER_PATH + "/logIn");
@@ -90,7 +96,8 @@ public class ServerProxy {
         }
     }
 
-    public JSONArray getLists(final String userId, final String token) throws ServerException {
+    public JSONArray getLists(final String userId, final String token) throws ServerException
+    {
         try {
             HttpGet request = new HttpGet(PROTOCOL_HTTP + API_ROOT + LISTS_PATH);
             request.setHeader("accept", "application/json");
@@ -115,38 +122,9 @@ public class ServerProxy {
         }
     }
 
-    public JSONArray getListItems(final String userId, final String token, final String listId) throws ServerException {
-
-        final String path = PROTOCOL_HTTP + API_ROOT + LISTS_PATH + "/" + listId + "/items";
-        Log.e(TAG, "Get List Items Path: " + path);
-
-        try {
-            HttpGet request = new HttpGet(path);
-            request.setHeader("accept", "application/json");
-            request.setHeader("userid", userId);
-            request.setHeader("token", token);
-
-            DefaultHttpClient httpClient = new DefaultHttpClient();
-            final ResponseHandler<String> responseHandler = new BasicResponseHandler();
-            final String response = httpClient.execute(request, responseHandler);
-
-            Log.i(TAG, "Get Lists Response: " + response);
-
-            return new JSONArray(response);
-        }
-        catch (final IOException e) {
-            final String message = "Unable to execute http request to get list items";
-            Log.e(TAG, message, e);
-            throw new ServerException(message, e);
-        }
-        catch (final JSONException e) {
-            final String message = "Unable to parse the get list items response as JSON";
-            Log.e(TAG, message, e);
-            throw new ServerException(message, e);
-        }
-    }
-
-    public JSONObject addList(final String userId, final String token, final ShoppingList list) throws ServerException {
+    public JSONObject addList(final String userId, final String token, final ShoppingList list)
+            throws ServerException
+    {
 
         final String path = PROTOCOL_HTTP + API_ROOT + LISTS_PATH;
         Log.i(TAG, "Add List Path: " + path);
@@ -179,8 +157,105 @@ public class ServerProxy {
         }
     }
 
+    public JSONObject deleteList(final String userId, final String token, final String listId)
+            throws ServerException
+    {
+
+        final String path = PROTOCOL_HTTP + API_ROOT + LISTS_PATH + "/" + listId;
+        Log.i(TAG, "Delete List Path: " + path);
+
+        try {
+            HttpDelete httpDelete = new HttpDelete(path);
+            httpDelete.setHeader("accept", "application/json");
+            httpDelete.setHeader("userid", userId);
+            httpDelete.setHeader("token", token);
+
+            DefaultHttpClient httpClient = new DefaultHttpClient();
+            final ResponseHandler<String> responseHandler = new BasicResponseHandler();
+            final String response = httpClient.execute(httpDelete, responseHandler);
+
+            Log.i(TAG, "Delete List Response: " + response);
+
+            return new JSONObject(response);
+        }
+        catch (final IOException | JSONException e) {
+            final String message = "Unable to delete the list";
+            Log.e(TAG, message, e);
+            throw new ServerException(message, e);
+        }
+    }
+
+    public JSONObject updateList(final String userId, final String token,
+                                 final ShoppingList shoppingList) throws ServerException
+    {
+
+        final String path = PROTOCOL_HTTP + API_ROOT + LISTS_PATH + "/" + shoppingList.getId();
+        Log.i(TAG, "Update List Path: " + path);
+
+        try {
+            final JSONObject params = shoppingList.asJsonObject();
+            final String paramsString = params.toString();
+            final StringEntity body = new StringEntity(paramsString);
+            Log.i(TAG, "Update List Parameters: " + paramsString);
+
+            HttpPut httpPut = new HttpPut(path);
+            httpPut.setHeader("accept", "application/json");
+            httpPut.setHeader("content-type", "application/json");
+            httpPut.setHeader("userid", userId);
+            httpPut.setHeader("token", token);
+            httpPut.setEntity(body);
+
+            DefaultHttpClient httpClient = new DefaultHttpClient();
+            final ResponseHandler<String> responseHandler = new BasicResponseHandler();
+            final String response = httpClient.execute(httpPut, responseHandler);
+
+            Log.i(TAG, "Update List Response: " + response);
+
+            return  new JSONObject(response);
+        }
+        catch (final IOException | JSONException e) {
+            final String message = "Unable to update the list";
+            Log.e(TAG, message, e);
+            throw new ServerException(message, e);
+        }
+    }
+
+    public JSONArray getListItems(final String userId, final String token, final String listId)
+            throws ServerException
+    {
+
+        final String path = PROTOCOL_HTTP + API_ROOT + LISTS_PATH + "/" + listId + "/items";
+        Log.e(TAG, "Get List Items Path: " + path);
+
+        try {
+            HttpGet request = new HttpGet(path);
+            request.setHeader("accept", "application/json");
+            request.setHeader("userid", userId);
+            request.setHeader("token", token);
+
+            DefaultHttpClient httpClient = new DefaultHttpClient();
+            final ResponseHandler<String> responseHandler = new BasicResponseHandler();
+            final String response = httpClient.execute(request, responseHandler);
+
+            Log.i(TAG, "Get Lists Response: " + response);
+
+            return new JSONArray(response);
+        }
+        catch (final IOException e) {
+            final String message = "Unable to execute http request to get list items";
+            Log.e(TAG, message, e);
+            throw new ServerException(message, e);
+        }
+        catch (final JSONException e) {
+            final String message = "Unable to parse the get list items response as JSON";
+            Log.e(TAG, message, e);
+            throw new ServerException(message, e);
+        }
+    }
+
     public JSONObject addListItem(final String userId, final String token,
-                        final String listId, final ShoppingListItem item) throws ServerException {
+                        final String listId, final ShoppingListItem item) throws ServerException
+    {
 
         final String path = PROTOCOL_HTTP + API_ROOT + LISTS_PATH + "/" + listId + "/items";
         Log.i(TAG, "Add List Item Path: " + path);
@@ -208,6 +283,71 @@ public class ServerProxy {
         }
         catch (final IOException | JSONException e) {
             final String message = "Unable to add the item to the list";
+            Log.e(TAG, message, e);
+            throw new ServerException(message, e);
+        }
+    }
+
+    public JSONObject deleteListItem(final String userId, final String token, final String listId,
+                                     final String listItemId) throws ServerException
+    {
+        final String path
+                = PROTOCOL_HTTP + API_ROOT + LISTS_PATH + "/" + listId + "/items/" + listItemId;
+        Log.i(TAG, "Delete List Item Path: " + path);
+
+        try {
+            HttpDelete httpDelete = new HttpDelete(path);
+            httpDelete.setHeader("accept", "application/json");
+            httpDelete.setHeader("userid", userId);
+            httpDelete.setHeader("token", token);
+
+            DefaultHttpClient httpClient = new DefaultHttpClient();
+            final ResponseHandler<String> responseHandler = new BasicResponseHandler();
+            final String response = httpClient.execute(httpDelete, responseHandler);
+
+            Log.i(TAG, "Delete List Item Response: " + response);
+
+            return new JSONObject(response);
+        }
+        catch (final IOException | JSONException e) {
+            final String message = "Unable to delete the list item";
+            Log.e(TAG, message, e);
+            throw new ServerException(message, e);
+        }
+    }
+
+    public JSONObject updateListItem(final String userId, final String token,
+             final String listId, final ShoppingListItem shoppingListItem) throws ServerException
+    {
+
+        final String path = PROTOCOL_HTTP + API_ROOT + LISTS_PATH
+                + "/" + listId + "/items/" + shoppingListItem.getId();
+
+        Log.i(TAG, "Update List Item Path: " + path);
+
+        try {
+            final JSONObject params = shoppingListItem.asJsonObject();
+            final String paramsString = params.toString();
+            final StringEntity body = new StringEntity(paramsString);
+            Log.i(TAG, "Update List Parameters: " + paramsString);
+
+            HttpPut httpPut = new HttpPut(path);
+            httpPut.setHeader("accept", "application/json");
+            httpPut.setHeader("content-type", "application/json");
+            httpPut.setHeader("userid", userId);
+            httpPut.setHeader("token", token);
+            httpPut.setEntity(body);
+
+            DefaultHttpClient httpClient = new DefaultHttpClient();
+            final ResponseHandler<String> responseHandler = new BasicResponseHandler();
+            final String response = httpClient.execute(httpPut, responseHandler);
+
+            Log.i(TAG, "Update List Item Response: " + response);
+
+            return  new JSONObject(response);
+        }
+        catch (final IOException | JSONException e) {
+            final String message = "Unable to update the list item";
             Log.e(TAG, message, e);
             throw new ServerException(message, e);
         }

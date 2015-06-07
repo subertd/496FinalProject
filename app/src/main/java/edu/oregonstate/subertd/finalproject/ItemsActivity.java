@@ -15,6 +15,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.NumberPicker;
@@ -24,8 +25,6 @@ import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.util.ArrayList;
 
 public class ItemsActivity extends AppCompatActivity {
 
@@ -130,15 +129,15 @@ public class ItemsActivity extends AppCompatActivity {
                 ListView listView = (ListView)findViewById(R.id.list_of_items);
                 listView.setAdapter(new ItemsArrayAdapter(ItemsActivity.this, listOfItems));
 
-                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
 
                     @Override
-                    public void onItemClick(final AdapterView<?> parent, final View view,
-                                            final int position, final long id)
-                    {
-                        final ShoppingListItem item = listOfItems[position];
+                    public boolean onItemLongClick(final AdapterView<?> parent, final View view,
+                                                   final int position, final long id) {
 
-                        // TODO mark the item as checked
+                        Log.i(TAG, "detected long click for position: " + position);
+                        new ListItemDeleter().execute(listOfItems[position]);
+                        return true;
                     }
                 });
             }
@@ -178,7 +177,7 @@ public class ItemsActivity extends AppCompatActivity {
                 shoppingListItem.setName(itemName);
                 shoppingListItem.setQuantity(quantity);
 
-                new NewListItemAdder().execute(shoppingListItem);
+                new ListItemAdder().execute(shoppingListItem);
             }
         });
         dialogBuilder.setCancelable(true);
@@ -187,7 +186,7 @@ public class ItemsActivity extends AppCompatActivity {
         alertDialog.show();
     }
 
-    private class NewListItemAdder extends AsyncTask<ShoppingListItem, Void, String> {
+    private class ListItemAdder extends AsyncTask<ShoppingListItem, Void, String> {
 
         @Override
         protected String doInBackground(ShoppingListItem...params) {
@@ -224,6 +223,71 @@ public class ItemsActivity extends AppCompatActivity {
         }
     }
 
+    private class ListItemDeleter extends AsyncTask<ShoppingListItem, Void, String> {
+
+        @Override
+        protected String doInBackground(final ShoppingListItem...params) {
+            try {
+                final String itemId = params[0].getId();
+                final JSONObject response = new ServerProxy().deleteListItem(userId, token, listId, itemId);
+                final boolean success = response.getBoolean("success");
+
+                if (success) {
+                    return "Successfully Deleted Shopping List Item";
+                }
+                else {
+                    return "Unable to Delete Shopping List Item";
+                }
+            }
+            catch (final ServerException e) {
+                return "Unable to Delete Shopping List Item";
+            }
+            catch (final JSONException e) {
+                return "Unexpected Response from Server";
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final String result) {
+            Toast.makeText(ItemsActivity.this, result, Toast.LENGTH_LONG).show();
+            populateListOfItems();
+        }
+    }
+
+    private class ListItemUpdater extends AsyncTask<ShoppingListItem, Void, String> {
+
+        @Override
+        protected String doInBackground(final ShoppingListItem...params) {
+            try {
+                final ShoppingListItem listItem = params[0];
+
+                final JSONObject response
+                        = new ServerProxy().updateListItem(userId, token, listId, listItem);
+
+                final boolean success = response.getBoolean("success");
+
+                if (success) {
+                    return "Successfully Updated Shopping List Item";
+                }
+                else {
+                    return "Unable to Update Shopping List Item";
+                }
+            }
+            catch (final ServerException e) {
+                return "Unable to Update Shopping List Item";
+            }
+            catch (final JSONException e) {
+                return "Unexpected Response from Server";
+            }
+        }
+
+        @Override
+        protected void onPostExecute(final String result) {
+            Toast.makeText(ItemsActivity.this, result, Toast.LENGTH_LONG).show();
+            populateListOfItems();
+        }
+    }
+
     /**
      * @citation https://guides.codepath.com/android/Using-an-ArrayAdapter-with-ListView
      */
@@ -237,7 +301,7 @@ public class ItemsActivity extends AppCompatActivity {
         public View getView(int position, View convertView, ViewGroup parent) {
 
             // Get the data item for this position
-            ShoppingListItem shoppingListItem = getItem(position);
+            final ShoppingListItem shoppingListItem = getItem(position);
 
             // Check if an existing view is being reused, otherwise inflate the view
             if (convertView == null) {
@@ -251,6 +315,14 @@ public class ItemsActivity extends AppCompatActivity {
             listItemQuantity.setText(String.valueOf(shoppingListItem.getQuantity()));
             listItemName.setText(shoppingListItem.getName());
             listItemCheck.setChecked(shoppingListItem.isChecked());
+
+            listItemCheck.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    shoppingListItem.setChecked(isChecked);
+                    new ListItemUpdater().execute(shoppingListItem);
+                }
+            });
 
             return convertView;
         }
